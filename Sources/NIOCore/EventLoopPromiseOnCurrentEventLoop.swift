@@ -1,5 +1,5 @@
 public struct EventLoopPromiseOnCurrentEventLoop<Value> {
-    @usableFromInline var wrapped: EventLoopPromise<Value>
+    public let wrapped: EventLoopPromise<Value>
     
     @inlinable public var futureResult: EventLoopFutureOnCurrentEventLoop<Value> {
         wrapped.futureResult.iKnowIAmOnTheEventLoopOfThisFuture()
