@@ -52,7 +52,7 @@ extension CurrentEventLoop {
 
 extension CurrentEventLoop {
     @inlinable
-    public func makePromise<T>(of type: T.Type = T.self, file: StaticString = #file, line: UInt = #line) -> EventLoopPromiseOnCurrentEventLoop<T> {
+    public func makePromise<T>(of type: T.Type = T.self, file: StaticString = #file, line: UInt = #line) -> CurrentEventLoopPromise<T> {
         wrapped.makePromise(of: type, file: file, line: line).iKnowIAmOnTheEventLoopOfThisPromise()
     }
 }
@@ -60,22 +60,22 @@ extension CurrentEventLoop {
 extension CurrentEventLoop {
     @discardableResult
     @inlinable
-    public func makeSucceededVoidFuture() -> EventLoopFutureOnCurrentEventLoop<Void> {
+    public func makeSucceededVoidFuture() -> CurrentEventLoopFuture<Void> {
         wrapped.makeSucceededVoidFuture().iKnowIAmOnTheEventLoopOfThisFuture()
     }
     
     @inlinable
-    public func makeFailedFuture<T>(_ error: Error) -> EventLoopFutureOnCurrentEventLoop<T> {
+    public func makeFailedFuture<T>(_ error: Error) -> CurrentEventLoopFuture<T> {
         wrapped.makeFailedFuture(error).iKnowIAmOnTheEventLoopOfThisFuture()
     }
     
     @inlinable
-    public func makeSucceededFuture<Success>(_ value: Success) -> EventLoopFutureOnCurrentEventLoop<Success> {
+    public func makeSucceededFuture<Success>(_ value: Success) -> CurrentEventLoopFuture<Success> {
         wrapped.makeSucceededFuture(value).iKnowIAmOnTheEventLoopOfThisFuture()
     }
     
     @inlinable
-    public func makeCompletedFuture<Success>(_ result: Result<Success, Error>) -> EventLoopFutureOnCurrentEventLoop<Success> {
+    public func makeCompletedFuture<Success>(_ result: Result<Success, Error>) -> CurrentEventLoopFuture<Success> {
         wrapped.makeCompletedFuture(result).iKnowIAmOnTheEventLoopOfThisFuture()
     }
 }

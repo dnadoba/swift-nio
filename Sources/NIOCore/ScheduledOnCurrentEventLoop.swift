@@ -1,7 +1,7 @@
 public struct ScheduledOnCurrentEventLoop<T> {
     public let wrapped: Scheduled<T>
     
-    public var futureResult: EventLoopFutureOnCurrentEventLoop<T> {
+    public var futureResult: CurrentEventLoopFuture<T> {
         wrapped.futureResult.iKnowIAmOnTheEventLoopOfThisFuture()
     }
     
@@ -10,7 +10,7 @@ public struct ScheduledOnCurrentEventLoop<T> {
     }
     
     @inlinable
-    public init(promise: EventLoopPromiseOnCurrentEventLoop<T>, cancellationTask: @escaping () -> Void) {
+    public init(promise: CurrentEventLoopPromise<T>, cancellationTask: @escaping () -> Void) {
         wrapped = .init(promise: promise.wrapped, cancellationTask: cancellationTask)
     }
     

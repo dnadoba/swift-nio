@@ -1,7 +1,7 @@
-public struct EventLoopPromiseOnCurrentEventLoop<Value> {
+public struct CurrentEventLoopPromise<Value> {
     public let wrapped: EventLoopPromise<Value>
     
-    @inlinable public var futureResult: EventLoopFutureOnCurrentEventLoop<Value> {
+    @inlinable public var futureResult: CurrentEventLoopFuture<Value> {
         wrapped.futureResult.iKnowIAmOnTheEventLoopOfThisFuture()
     }
     
@@ -13,20 +13,20 @@ public struct EventLoopPromiseOnCurrentEventLoop<Value> {
 
 #if swift(>=5.6)
 @available(*, unavailable)
-extension EventLoopPromiseOnCurrentEventLoop: Sendable {}
+extension CurrentEventLoopPromise: Sendable {}
 #endif
 
 extension EventLoopPromise {
     @inlinable public func iKnowIAmOnTheEventLoopOfThisPromise(
         file: StaticString = #file,
         line: UInt = #line
-    ) -> EventLoopPromiseOnCurrentEventLoop<Value> {
+    ) -> CurrentEventLoopPromise<Value> {
         self.futureResult.eventLoop.preconditionInEventLoop(file: file, line: line)
         return .init(self)
     }
 }
 
-extension EventLoopPromiseOnCurrentEventLoop {
+extension CurrentEventLoopPromise {
     @inlinable
     public func succeed(_ value: Value) {
         self.wrapped.succeed(value)
