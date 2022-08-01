@@ -314,19 +314,19 @@ extension NIOThreadPool {
 
     public func syncShutdownGracefully() throws {
         let errorStorageLock = Lock()
-        var errorStorage: Swift.Error? = nil
+        let errorStorage: UnsafeMutableTransferBox<Swift.Error?> = .init(nil)
         let continuation = DispatchWorkItem {}
         self.shutdownGracefully { error in
             if let error = error {
                 errorStorageLock.withLock {
-                    errorStorage = error
+                    errorStorage.wrappedValue = error
                 }
             }
             continuation.perform()
         }
         continuation.wait()
         try errorStorageLock.withLock {
-            if let error = errorStorage {
+            if let error = errorStorage.wrappedValue {
                 throw error
             }
         }

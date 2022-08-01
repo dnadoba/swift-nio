@@ -1493,18 +1493,18 @@ extension EventLoopFuture {
         _ updateAccumulatingResult: @escaping ReduceIntoCallback<InputValue>
     ) -> EventLoopFuture<Value> {
         let p0 = eventLoop.makePromise(of: Value.self)
-        var value: Value = initialResult
+        let value: UnsafeMutableTransferBox<Value> = .init(initialResult)
 
         let f0 = eventLoop.makeSucceededFuture(())
         let future = f0.fold(futures) { (_: (), newValue: InputValue) -> EventLoopFuture<Void> in
             eventLoop.assertInEventLoop()
-            updateAccumulatingResult(&value, newValue)
+            updateAccumulatingResult(&value.wrappedValue, newValue)
             return eventLoop.makeSucceededFuture(())
         }
 
         future.whenSuccess {
             eventLoop.assertInEventLoop()
-            p0.succeed(value)
+            p0.succeed(value.wrappedValue)
         }
         future.whenFailure { (error) in
             eventLoop.assertInEventLoop()
