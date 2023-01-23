@@ -128,24 +128,24 @@ final class RawSocketBootstrapTests: XCTestCase {
         defer { XCTAssertNoThrow(try channel.close().wait()) }
         try channel.configureForRecvMmsg(messageCount: 10)
         let expectedMessages = (1...10).map { "Hello World \($0)" }
-        for message in expectedMessages.map(ByteBuffer.init(string:)) {
+        for message in expectedMessages {
             
             var header = IPv4Header()
             header.version = 4
             header.internetHeaderLength = 5
-            header.totalLength = UInt16(IPv4Header.size + message.readableBytes)
+            header.totalLength = UInt16(IPv4Header.size + message.utf8.count)
             header.protocol = .reservedForTesting
             header.timeToLive = 64
             header.destinationIpAddress = .init(127, 0, 0, 1)
             header.sourceIpAddress = .init(127, 0, 0, 1)
             header.setChecksum()
-            
+            let data = ByteBuffer {
+                header.toBSDRawSocket()
+                message
+            }
             try channel.writeAndFlush(AddressedEnvelope(
                 remoteAddress: SocketAddress(ipAddress: "127.0.0.1", port: 0),
-                data: ByteBuffer {
-                    header.toBSDRawSocket()
-                    message
-                }
+                data: data
             )).wait()
         }
         

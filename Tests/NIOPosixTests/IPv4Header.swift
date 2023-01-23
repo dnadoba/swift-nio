@@ -146,23 +146,32 @@ struct IPv4Header: Hashable {
     }
 }
 
-extension IPv4Header: ByteBufferSerialisable {
-    var writer: some ByteBufferSerialisable {
-        self.versionAndIhl
-        self.dscpAndEcn
-        self.totalLength
-        self.identification
-        self.flagsAndFragmentOffset
-        self.timeToLive
-        self.`protocol`.rawValue
-        self.headerChecksum
-        self.sourceIpAddress.rawValue
-        self.destinationIpAddress.rawValue
+func build<Writer: NonThrowingByteBufferSerialisable>(
+    @ByteBufferWriteBuilder builder: () -> Writer
+) -> Writer {
+    builder()
+}
+
+extension IPv4Header: NonThrowingByteBufferSerialisable {
+    var writer: some NonThrowingByteBufferSerialisable {
+        let a = build {
+            self.versionAndIhl
+            self.dscpAndEcn
+            self.totalLength
+            self.identification
+            self.flagsAndFragmentOffset
+            self.timeToLive
+            self.`protocol`.rawValue
+            self.headerChecksum
+            self.sourceIpAddress.rawValue
+            self.destinationIpAddress.rawValue
+        }
+        return a
     }
 }
 
 extension IPv4Header {
-    func toBSDRawSocket() -> some ByteBufferSerialisable {
+    func toBSDRawSocket() -> some NonThrowingByteBufferSerialisable {
         var header = self
         // On BSD, the total length needs to be in host byte order
         header.totalLength = header.totalLength.convertEndianness(to: .big)
