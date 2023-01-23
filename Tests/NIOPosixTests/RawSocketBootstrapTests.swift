@@ -129,7 +129,7 @@ final class RawSocketBootstrapTests: XCTestCase {
         try channel.configureForRecvMmsg(messageCount: 10)
         let expectedMessages = (1...10).map { "Hello World \($0)" }
         for message in expectedMessages.map(ByteBuffer.init(string:)) {
-            var packet = ByteBuffer()
+            
             var header = IPv4Header()
             header.version = 4
             header.internetHeaderLength = 5
@@ -139,11 +139,13 @@ final class RawSocketBootstrapTests: XCTestCase {
             header.destinationIpAddress = .init(127, 0, 0, 1)
             header.sourceIpAddress = .init(127, 0, 0, 1)
             header.setChecksum()
-            packet.writeIPv4HeaderToOSRawSocket(header)
-            packet.writeImmutableBuffer(message)
+            
             try channel.writeAndFlush(AddressedEnvelope(
                 remoteAddress: SocketAddress(ipAddress: "127.0.0.1", port: 0),
-                data: packet
+                data: ByteBuffer {
+                    header.toBSDRawSocket()
+                    message
+                }
             )).wait()
         }
         

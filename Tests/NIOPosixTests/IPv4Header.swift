@@ -146,6 +146,32 @@ struct IPv4Header: Hashable {
     }
 }
 
+extension IPv4Header: ByteBufferSerialisable {
+    var writer: some ByteBufferSerialisable {
+        self.versionAndIhl
+        self.dscpAndEcn
+        self.totalLength
+        self.identification
+        self.flagsAndFragmentOffset
+        self.timeToLive
+        self.`protocol`.rawValue
+        self.headerChecksum
+        self.sourceIpAddress.rawValue
+        self.destinationIpAddress.rawValue
+    }
+}
+
+extension IPv4Header {
+    func toBSDRawSocket() -> some ByteBufferSerialisable {
+        var header = self
+        // On BSD, the total length needs to be in host byte order
+        header.totalLength = header.totalLength.convertEndianness(to: .big)
+        // TODO: fragmentOffset needs to be in host byte order as well but it is always zero in our tests
+        // and fragmentOffset is 13 bits in size so we can't just use writeInteger(endianness: .host)
+        return header
+    }
+}
+
 extension FixedWidthInteger {
     func convertEndianness(to endianness: Endianness) -> Self {
         switch endianness {
