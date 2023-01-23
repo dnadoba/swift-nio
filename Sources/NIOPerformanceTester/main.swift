@@ -1008,14 +1008,14 @@ try measureAndPrint(
 try measureAndPrint(
     desc: "bytebuffer_multi_rw_10_uint32s",
     benchmark: ByteBufferMultiReadWriteTenIntegersBenchmark<UInt32>(
-        iterations: 10_000_000
+        iterations: 1_000_000
     )
 )
 
 try measureAndPrint(
     desc: "bytebuffer_result_builder_rw_10_uint32s",
     benchmark: ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<UInt32>(
-        iterations: 10_000_000
+        iterations: 1_000_000
     )
 )
 

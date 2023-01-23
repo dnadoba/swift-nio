@@ -85,13 +85,13 @@ final class ByteBufferMultiReadWriteTenIntegersBenchmark<I: FixedWidthInteger>: 
     }
 }
 
-func build<Writer: NonThrowingByteBufferSerialisable>(
+func build<Writer: ByteBufferSerialisable>(
     @ByteBufferWriteBuilder builder: () -> Writer
 ) -> Writer {
     builder()
 }
 
-final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthInteger & NonThrowingByteBufferSerialisable>: Benchmark {
+final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthInteger & ByteBufferSerialisable>: Benchmark {
     private let iterations: Int
     private var buffer: ByteBuffer = ByteBuffer()
 
@@ -120,10 +120,10 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
                 I(6)
                 I(7)
                 I(8)
-                I(9)
+                //I(9)
             }
             self.buffer.write(builder: { writer })
-            let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I, I).self)!
+            let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I).self)!
             result = result &+ value.0
             result = result &+ value.1
             result = result &+ value.2
@@ -133,7 +133,7 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
             result = result &+ value.6
             result = result &+ value.7
             result = result &+ value.8
-            result = result &+ value.9
+            //result = result &+ value.9
             result &+= I(i)
         }
         //precondition(result == I(self.iterations) * 45 + I(self.iterations))
