@@ -109,7 +109,7 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
     func run() throws -> Int {
         var result: I = 0
         let iterations = self.iterations
-        for i in 0..<iterations {
+        for _ in 0..<iterations {
             let writer = build {
                 I(0)
                 I(1)
@@ -134,9 +134,8 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
             result = result &+ value.7
             result = result &+ value.8
             result = result &+ value.9
-            result &+= I(i)
         }
-        //precondition(result == I(self.iterations) * 45 + I(self.iterations))
+        precondition(result == I(self.iterations) * 45)
         return self.buffer.readableBytes
     }
 }
