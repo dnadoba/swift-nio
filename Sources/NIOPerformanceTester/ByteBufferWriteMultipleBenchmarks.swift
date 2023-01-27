@@ -85,10 +85,36 @@ final class ByteBufferMultiReadWriteTenIntegersBenchmark<I: FixedWidthInteger>: 
     }
 }
 
-func build<Writer: NonThrowingByteBufferSerialisable>(
+func build<Writer>(
     @ByteBufferWriteBuilder builder: () -> Writer
 ) -> Writer {
     builder()
+}
+
+struct TenIntegers<I: NonThrowingByteBufferSerialisable>: NonThrowingByteBufferSerialisable {
+    var i0: I
+    var i1: I
+    var i2: I
+    var i3: I
+    var i4: I
+    var i5: I
+    var i6: I
+    var i7: I
+    var i8: I
+    var i9: I
+    
+    var writer: some NonThrowingByteBufferSerialisable {
+        i0
+        i1
+        i2
+        i3
+        i4
+        i5
+        i6
+        i7
+        i8
+        i9
+    }
 }
 
 final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthInteger & NonThrowingByteBufferSerialisable>: Benchmark {
@@ -111,6 +137,57 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
         let iterations = self.iterations
         for _ in 0..<iterations {
             let writer = build {
+                TenIntegers<I>(
+                    i0: 0,
+                    i1: 1,
+                    i2: 2,
+                    i3: 3,
+                    i4: 4,
+                    i5: 5,
+                    i6: 6,
+                    i7: 7,
+                    i8: 8,
+                    i9: 9
+                )
+            }
+            self.buffer.write(builder: { writer })
+            let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I, I).self)!
+            result = result &+ value.0
+            result = result &+ value.1
+            result = result &+ value.2
+            result = result &+ value.3
+            result = result &+ value.4
+            result = result &+ value.5
+            result = result &+ value.6
+            result = result &+ value.7
+            result = result &+ value.8
+            result = result &+ value.9
+        }
+        precondition(result == I(self.iterations) * 45)
+        return self.buffer.readableBytes
+    }
+}
+
+final class RawResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthInteger & StaticallySizedRawWriterProtocol>: Benchmark {
+    private let iterations: Int
+    private var buffer: ByteBuffer = ByteBuffer()
+
+    init(iterations: Int) {
+        self.iterations = iterations
+    }
+
+    func setUp() throws {
+        self.buffer.reserveCapacity(10 * MemoryLayout<I>.size)
+    }
+
+    func tearDown() {
+    }
+
+    func run() throws -> Int {
+        var result: I = 0
+        let iterations = self.iterations
+        for _ in 0..<iterations {
+            self.buffer.writeRaw {
                 I(0)
                 I(1)
                 I(2)
@@ -122,7 +199,6 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
                 I(8)
                 I(9)
             }
-            self.buffer.write(builder: { writer })
             let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I, I).self)!
             result = result &+ value.0
             result = result &+ value.1

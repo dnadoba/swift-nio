@@ -125,6 +125,7 @@ var targets: [PackageDescription.Target] = [
 
 let package = Package(
     name: "swift-nio",
+    platforms: [.macOS(.v12)],
     products: [
         .library(name: "NIOCore", targets: ["NIOCore"]),
         .library(name: "NIO", targets: ["NIO"]),

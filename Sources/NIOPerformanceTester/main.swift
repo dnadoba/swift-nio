@@ -1018,6 +1018,12 @@ try measureAndPrint(
         iterations: 1_000_000
     )
 )
+try measureAndPrint(
+    desc: "raw_result_builder_rw_10_uint32s",
+    benchmark: RawResultBuilderWriteTenIntegersAndReadMultiBenchmark<UInt32>(
+        iterations: 1_000_000
+    )
+)
 
 try measureAndPrint(
     desc: "lock_1_thread_10M_ops",

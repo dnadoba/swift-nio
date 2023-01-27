@@ -81,7 +81,7 @@ extension ByteBufferSerialisableTuple2: ByteBufferSerialisable {
         return writtenBytesA + writtenBytesB
     }
     
-    @inline(__always)
+    //@inline(__always)
     @inlinable public var _size: Int? {
         guard let aSize = a._size, let bSize = b._size else { return nil }
         return aSize + bSize
@@ -103,7 +103,7 @@ extension ByteBufferSerialisableTuple2: NonThrowingByteBufferSerialisable where 
         let writtenBytesB = b._set(in: &buffer, at: offset + writtenBytesA)
         return writtenBytesA + writtenBytesB
     }
-    @inline(__always)
+    //@inline(__always)
     @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         //guard buffer.count >= a._size! else { fatalError("buffer.count >= _size! \(#function)") }
         let writtenBytesA = a._setUnsafe(in: buffer)
@@ -194,11 +194,12 @@ extension Optional: NonThrowingByteBufferSerialisable where Wrapped: NonThrowing
 }
 
 @resultBuilder public enum ByteBufferWriteBuilder {
-    @inline(__always)
+
+    //@inline(__always)
     @inlinable public static func buildPartialBlock<First: ByteBufferSerialisable>(first: First) -> First {
         first
     }
-    @inline(__always)
+    //@inline(__always)
     @inlinable public static func buildPartialBlock<First: ByteBufferSerialisable, Second: ByteBufferSerialisable>(
         accumulated: First,
         next: Second
@@ -289,7 +290,7 @@ extension ByteBuffer {
     }
     
     @discardableResult
-    @inline(__always)
+    //@inline(__always)
     @inlinable public mutating func write(
         @ByteBufferWriteBuilder builder: () -> some NonThrowingByteBufferSerialisable
     ) -> Int {
@@ -321,9 +322,9 @@ extension FixedWidthInteger where Self: NonThrowingByteBufferSerialisable {
         buffer.setInteger(self, at: offset)
     }
     
-    @inline(__always)
+    //@inline(__always)
     @inlinable public var _size: Int? { MemoryLayout<Self>.size }
-    @inline(__always)
+    //@inline(__always)
     @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         buffer.storeBytes(of: self.bigEndian, as: Self.self)
         return MemoryLayout<Self>.size
