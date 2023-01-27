@@ -73,8 +73,7 @@ extension ByteBufferSerialisable where Writer: StaticallySized {
     @inlinable public static var staticSize: Int { Writer.staticSize }
 }
 
-@usableFromInline
-struct ByteBufferSerialisableTuple2<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
+public struct ByteBufferSerialisableTuple2<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
     @usableFromInline var a: A
     @usableFromInline var b: B
     @inlinable init(a: A, b: B) {
@@ -98,24 +97,24 @@ extension ByteBufferSerialisableTuple2: ByteBufferSerialisable {
         return aSize + bSize
     }
     @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) rethrows -> Int {
-        precondition(buffer.count >= _size!, "buffer.count >= _size! \(#function)")
+        //guard buffer.count >= a._size! else { fatalError("buffer.count >= _size! \(#function)") }
         let writtenBytesA = try a._setUnsafe(in: buffer)
         
-        let advancedPointer = UnsafeMutableRawBufferPointer(rebasing: buffer.dropFirst(writtenBytesA))
-        precondition(advancedPointer.count >= b._size!, "pointer advancing failed")
+        let advancedPointer = UnsafeMutableRawBufferPointer(fastRebase: buffer.dropFirst(writtenBytesA))
+        //guard advancedPointer.count >= b._size! else { fatalError("pointer advancing failed \(#function)") }
         let writtenBytesB = try b._setUnsafe(in: advancedPointer)
-        return writtenBytesA + writtenBytesB
+        return writtenBytesA &+ writtenBytesB
     }
 }
 
 extension ByteBufferSerialisableTuple2: NonThrowingByteBufferSerialisable where A: NonThrowingByteBufferSerialisable, B: NonThrowingByteBufferSerialisable {
-    @inlinable func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
+    @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
         let writtenBytesA = a._set(in: &buffer, at: offset)
         let writtenBytesB = b._set(in: &buffer, at: offset + writtenBytesA)
         return writtenBytesA + writtenBytesB
     }
     //@inline(__always)
-    @inlinable func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
+    @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         //guard buffer.count >= a._size! else { fatalError("buffer.count >= _size! \(#function)") }
         let writtenBytesA = a._setUnsafe(in: buffer)
         
@@ -127,11 +126,11 @@ extension ByteBufferSerialisableTuple2: NonThrowingByteBufferSerialisable where 
 }
 
 extension ByteBufferSerialisableTuple2: StaticallySized where A: StaticallySized, B: StaticallySized {
-    @inlinable static var staticSize: Int { A.staticSize + B.staticSize }
+    @inlinable public static var staticSize: Int { A.staticSize + B.staticSize }
 }
 
-@usableFromInline
-enum ByteBufferSerialisableEither<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
+
+public enum ByteBufferSerialisableEither<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
     case a(A)
     case b(B)
 }
@@ -167,14 +166,14 @@ extension ByteBufferSerialisableEither: ByteBufferSerialisable {
 }
 
 extension ByteBufferSerialisableEither: NonThrowingByteBufferSerialisable where A: NonThrowingByteBufferSerialisable, B: NonThrowingByteBufferSerialisable {
-    @inlinable func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
+    @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
         switch self {
         case .a(let a): return a._set(in: &buffer, at: offset)
         case .b(let b): return b._set(in: &buffer, at: offset)
         }
     }
     
-    @inlinable func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
+    @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         switch self {
         case .a(let a): return a._setUnsafe(in: buffer)
         case .b(let b): return b._setUnsafe(in: buffer)
@@ -209,58 +208,43 @@ extension Optional: NonThrowingByteBufferSerialisable where Wrapped: NonThrowing
     }
 }
 
-@resultBuilder public enum ByteBufferWriteBuilder {
+public struct VoidSerialisable: NonThrowingByteBufferSerialisable, StaticallySized {
+    @inlinable public static var staticSize: Int { 0 }
+    @inlinable init() {}
+    @inlinable public var writer: Never { fatalError() }
+    @inlinable public var _underestimatedSize: Int { 0}
+    @inlinable public var _size: Int? { 0 }
+    @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int { 0 }
+    @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int { 0 }
+}
 
-    //@inline(__always)
+@resultBuilder public enum ByteBufferWriteBuilder {
+    public static func buildBlock() -> VoidSerialisable {
+        VoidSerialisable()
+    }
+
     @inlinable public static func buildPartialBlock<First: ByteBufferSerialisable>(first: First) -> First {
         first
+    }
+    @inlinable public static func buildPartialBlock(first: Void) -> VoidSerialisable {
+        VoidSerialisable()
     }
     //@inline(__always)
     @inlinable public static func buildPartialBlock<First: ByteBufferSerialisable, Second: ByteBufferSerialisable>(
         accumulated: First,
         next: Second
-    ) -> some ByteBufferSerialisable {
+    ) -> ByteBufferSerialisableTuple2<First, Second> {
         ByteBufferSerialisableTuple2(a: accumulated, b: next)
     }
-    @inlinable public static func buildPartialBlock<First: NonThrowingByteBufferSerialisable, Second: NonThrowingByteBufferSerialisable>(
-        accumulated: First,
-        next: Second
-    ) -> some NonThrowingByteBufferSerialisable {
-        ByteBufferSerialisableTuple2(a: accumulated, b: next)
-    }
-    
-    @inlinable public static func buildPartialBlock<First: ByteBufferSerialisable & StaticallySized, Second: ByteBufferSerialisable & StaticallySized>(
-        accumulated: First,
-        next: Second
-    ) -> some ByteBufferSerialisable & StaticallySized {
-        ByteBufferSerialisableTuple2(a: accumulated, b: next)
-    }
-    @inlinable public static func buildPartialBlock<First: NonThrowingByteBufferSerialisable & StaticallySized, Second: NonThrowingByteBufferSerialisable & StaticallySized>(
-        accumulated: First,
-        next: Second
-    ) -> some NonThrowingByteBufferSerialisable & StaticallySized {
-        ByteBufferSerialisableTuple2(a: accumulated, b: next)
-    }
-    
+
     @inlinable public static func buildEither<First: ByteBufferSerialisable, Second: ByteBufferSerialisable>(
         first component: First
-    ) -> some ByteBufferSerialisable {
+    ) -> ByteBufferSerialisableEither<First, Second> {
         ByteBufferSerialisableEither<First, Second>.a(component)
     }
     @inlinable public static func buildEither<First: ByteBufferSerialisable, Second: ByteBufferSerialisable>(
         second component: Second
-    ) -> some ByteBufferSerialisable {
-        ByteBufferSerialisableEither<First, Second>.b(component)
-    }
-    
-    @inlinable static func buildEither<First: NonThrowingByteBufferSerialisable, Second: NonThrowingByteBufferSerialisable>(
-        first component: First
-    ) -> some NonThrowingByteBufferSerialisable {
-        ByteBufferSerialisableEither<First, Second>.a(component)
-    }
-    @inlinable public static func buildEither<First: NonThrowingByteBufferSerialisable, Second: NonThrowingByteBufferSerialisable>(
-        second component: Second
-    ) -> some NonThrowingByteBufferSerialisable {
+    ) -> ByteBufferSerialisableEither<First, Second> {
         ByteBufferSerialisableEither<First, Second>.b(component)
     }
     
@@ -294,6 +278,26 @@ extension ByteBuffer {
         }
     }
     
+    @inlinable public init(@ByteBufferWriteBuilder builder: () throws -> some NonThrowingByteBufferSerialisable) throws {
+        let serialisable = try builder()
+        
+        if let size = serialisable._size {
+            var buffer = ByteBuffer(allocator: .init(), startingCapacity: size)
+            buffer.writeWithUnsafeMutableBytes(minimumWritableBytes: size) { buffer in
+                let writtenBytes = serialisable._setUnsafe(in: buffer)
+
+                precondition(writtenBytes == size, "promised to write \(size) bytes but actually \(writtenBytes) bytes were written")
+                return writtenBytes
+            }
+            self = buffer
+        } else {
+            var buffer = ByteBuffer(allocator: .init(), startingCapacity: serialisable._underestimatedSize)
+            let writtenBytes = serialisable._set(in: &buffer, at: 0)
+            buffer.moveWriterIndex(to: writtenBytes)
+            self = buffer
+        }
+    }
+    
     @inlinable public init(@ByteBufferWriteBuilder builder: () -> some NonThrowingByteBufferSerialisable) {
         let serialisable = builder()
         
@@ -318,9 +322,9 @@ extension ByteBuffer {
 extension ByteBuffer {
     @discardableResult
     @inlinable public mutating func write(
-        @ByteBufferWriteBuilder builder: () -> some ByteBufferSerialisable
+        @ByteBufferWriteBuilder builder: () throws -> some ByteBufferSerialisable
     ) rethrows -> Int {
-        let serialisable = builder()
+        let serialisable = try builder()
         
         if let size = serialisable._size {
             return try self.writeWithUnsafeMutableBytes(minimumWritableBytes: size) { buffer in
@@ -340,9 +344,9 @@ extension ByteBuffer {
     @discardableResult
     //@inline(__always)
     @inlinable public mutating func write(
-        @ByteBufferWriteBuilder builder: () -> some NonThrowingByteBufferSerialisable
-    ) -> Int {
-        let serialisable = builder()
+        @ByteBufferWriteBuilder builder: () throws -> some NonThrowingByteBufferSerialisable
+    ) rethrows -> Int {
+        let serialisable = try builder()
         
         if let size = serialisable._size {
             return self.writeWithUnsafeMutableBytes(minimumWritableBytes: size) { buffer in
@@ -427,37 +431,104 @@ extension ByteBuffer: NonThrowingByteBufferSerialisable {
     @inlinable public var writer: Never { fatalError() }
 }
 
-public struct LengthPrefixed<LengthPrefixInteger: FixedWidthInteger, Message: ByteBufferSerialisable>: ByteBufferSerialisable {
+public struct IntegerLengthPrefixed<LengthPrefixInteger: FixedWidthInteger, Message: ByteBufferSerialisable>: ByteBufferSerialisable {
     @usableFromInline var message: Message
-    
+
     init(
         lengthPrefixInteger: LengthPrefixInteger.Type = LengthPrefixInteger.self,
         @ByteBufferWriteBuilder messageBuilder: () -> Message
     ) {
         self.message = messageBuilder()
     }
-    
+
     @inlinable public var _underestimatedSize: Int {
         MemoryLayout<LengthPrefixInteger>.size + message._underestimatedSize
     }
     @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) throws -> Int {
         let lengthPrefixOffset = offset
         let messageOffset = offset + MemoryLayout<LengthPrefixInteger>.size
-        
+
         let messageLength = try message._set(in: &buffer, at: messageOffset)
-        
+
         guard let lengthPrefix = LengthPrefixInteger(exactly: messageLength) else {
             throw ByteBuffer.LengthPrefixError.messageLengthDoesNotFitExactlyIntoRequiredIntegerFormat
         }
-        
+
         buffer.setInteger(lengthPrefix, at: lengthPrefixOffset)
-        
+
         return MemoryLayout<LengthPrefixInteger>.size + messageLength
     }
-    
+
     @inlinable public var _size: Int? { nil }
     @inlinable public var writer: Never { fatalError() }
 }
 
+public struct LengthPrefixed<Header: ByteBufferSerialisable & StaticallySized, Body: ByteBufferSerialisable> {
+    @usableFromInline var makeHeader: @Sendable (Int) throws -> Header
+    @usableFromInline var body: Body
+    
+    @inlinable public init(
+        @ByteBufferWriteBuilder headerWithBodySize: @escaping @Sendable (Int) throws -> Header,
+        @ByteBufferWriteBuilder body: () -> Body
+    ) {
+        self.makeHeader = headerWithBodySize
+        self.body = body()
+    }
+}
 
+extension LengthPrefixed: ByteBufferSerialisable {
+    public var writer: Never { fatalError() }
+    
+    @inlinable public var _underestimatedSize: Int {
+        Header.staticSize + body._underestimatedSize
+    }
+    
+    @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) throws -> Int {
+        let headerOffset = offset
+        let headerSize = Header.staticSize
+        let bodySize = try body._set(in: &buffer, at: headerOffset + headerSize)
+        let headerBytesWritten = try makeHeader(bodySize)._set(in: &buffer, at: headerOffset)
+        assert(headerBytesWritten == headerSize)
+        return headerSize + bodySize
+    }
+    
+    @inlinable public var _size: Int? {
+        guard let bodySize = body._size else {
+            return nil
+        }
+        return Header.staticSize + bodySize
+    }
+    
+    @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) throws -> Int {
+        let headerBuffer = UnsafeMutableRawBufferPointer(fastRebase: buffer[..<Header.staticSize])
+        let bodyBuffer = UnsafeMutableRawBufferPointer(fastRebase: buffer[Header.staticSize...])
+        let bodySize = try body._setUnsafe(in: bodyBuffer)
+        let headerSize = try makeHeader(bodySize)._setUnsafe(in: headerBuffer)
+        assert(headerSize == Header.staticSize)
+        return headerSize + bodySize
+    }
+}
 
+extension LengthPrefixed: StaticallySized where Header: StaticallySized, Body: StaticallySized {
+    public static var staticSize: Int { Header.staticSize + Body.staticSize }
+}
+
+extension LengthPrefixed where Header: FixedWidthInteger & ByteBufferSerialisable {
+    @inlinable public init(
+        integerType: Header.Type,
+        @ByteBufferWriteBuilder body: () -> Body
+    ) {
+        self.init(headerWithBodySize: { messageLength in
+            try Header(messageLength: messageLength)
+        }, body: body)
+    }
+}
+
+extension FixedWidthInteger {
+    @inlinable init(messageLength: some BinaryInteger) throws {
+        guard let lengthPrefix = Self(exactly: messageLength) else {
+            throw ByteBuffer.LengthPrefixError.messageLengthDoesNotFitExactlyIntoRequiredIntegerFormat
+        }
+        self = lengthPrefix
+    }
+}

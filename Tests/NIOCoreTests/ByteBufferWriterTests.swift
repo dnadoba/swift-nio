@@ -66,6 +66,44 @@ final class ByteBufferWriterTests: XCTestCase {
         XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
     }
     
+    func testIfElseWithEmptyElseBranch() {
+        let randomBool = Bool.random()
+        var buffer = ByteBuffer {
+            if randomBool {
+                UInt8(2)
+            } else { }
+        }
+        if randomBool {
+            XCTAssertEqual(UInt8(2), buffer.readInteger())
+        } else { }
+        XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
+    }
+    
+    func testIfElseThrow() throws {
+        struct MyError: Error {}
+        let boolTrue = true
+        var buffer = try ByteBuffer {
+            if boolTrue {
+                UInt8(1)
+            } else {
+                throw MyError()
+            }
+        }
+        
+        XCTAssertEqual(UInt8(1), buffer.readInteger())
+        XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
+        
+        let boolFalse = false
+        
+        XCTAssertThrowsError(try ByteBuffer {
+            if boolFalse {
+                UInt8(1)
+            } else {
+                throw MyError()
+            }
+        })
+    }
+    
     func testComposition() {
         struct CustomStruct: NonThrowingByteBufferSerialisable {
             enum Nested: NonThrowingByteBufferSerialisable {
@@ -105,7 +143,7 @@ final class ByteBufferWriterTests: XCTestCase {
         XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
     }
     
-    func testWrite() {
+    func testMultipleWrites() {
         var buffer = ByteBuffer()
         buffer.write {
             UInt32(1)
