@@ -105,22 +105,22 @@ final class ByteBufferWriterTests: XCTestCase {
     }
     
     func testComposition() {
-        struct CustomStruct: NonThrowingByteBufferSerialisable {
+        struct CustomStruct: ByteBufferSerialisable {
             var a: UInt8
             var b: UInt16
             var nested: Nested
             
-            var writer: some NonThrowingByteBufferSerialisable {
+            var writer: some ByteBufferSerialisable {
                 a
                 b
                 nested
             }
             
-            enum Nested: NonThrowingByteBufferSerialisable {
+            enum Nested: ByteBufferSerialisable {
                 case c(UInt32)
                 case d(UInt64)
                 
-                var writer: some NonThrowingByteBufferSerialisable {
+                var writer: some ByteBufferSerialisable {
                     switch self {
                     case .c(let c):
                         c

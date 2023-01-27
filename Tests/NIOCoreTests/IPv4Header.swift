@@ -181,14 +181,14 @@ struct IPv4Header: Hashable {
     }
 }
 
-func build<Writer: NonThrowingByteBufferSerialisable>(
+func build<Writer: ByteBufferSerialisable>(
     @ByteBufferWriteBuilder builder: () -> Writer
 ) -> Writer {
     builder()
 }
 
-extension IPv4Header: NonThrowingByteBufferSerialisable & StaticallySized {
-    var writer: some NonThrowingByteBufferSerialisable & StaticallySized {
+extension IPv4Header: ByteBufferSerialisable & StaticallySized {
+    var writer: some ByteBufferSerialisable & StaticallySized {
         self.versionAndIhl
         self.dscpAndEcn
         self.totalLength
@@ -203,7 +203,7 @@ extension IPv4Header: NonThrowingByteBufferSerialisable & StaticallySized {
 }
 
 extension IPv4Header {
-    func toBSDRawSocket() -> some NonThrowingByteBufferSerialisable {
+    func toBSDRawSocket() -> some ByteBufferSerialisable {
         var header = self
         // On BSD, the total length needs to be in host byte order
         header.totalLength = header.totalLength.convertEndianness(to: .big)

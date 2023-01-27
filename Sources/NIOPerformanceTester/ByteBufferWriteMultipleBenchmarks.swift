@@ -91,7 +91,7 @@ func build<Writer>(
     builder()
 }
 
-struct TenIntegers<I: ByteBufferSerialisable>: ByteBufferSerialisable {
+struct TenIntegers<I: ThrowingByteBufferSerialisable>: ThrowingByteBufferSerialisable {
     var i0: I
     var i1: I
     var i2: I
@@ -103,7 +103,7 @@ struct TenIntegers<I: ByteBufferSerialisable>: ByteBufferSerialisable {
     var i8: I
     var i9: I
     
-    var writer: some ByteBufferSerialisable {
+    var writer: some ThrowingByteBufferSerialisable {
         i0
         i1
         i2
@@ -117,7 +117,7 @@ struct TenIntegers<I: ByteBufferSerialisable>: ByteBufferSerialisable {
     }
 }
 
-final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthInteger & NonThrowingByteBufferSerialisable>: Benchmark {
+final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthInteger & ByteBufferSerialisable>: Benchmark {
     private let iterations: Int
     private var buffer: ByteBuffer = ByteBuffer()
 
