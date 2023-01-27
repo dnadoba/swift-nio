@@ -486,7 +486,8 @@ extension LengthPrefixed: ByteBufferSerialisable {
     @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) throws -> Int {
         let headerOffset = offset
         let headerSize = Header.staticSize
-        let bodySize = try body._set(in: &buffer, at: headerOffset + headerSize)
+        let bodyOffset = headerOffset + headerSize
+        let bodySize = try body._set(in: &buffer, at: bodyOffset)
         let headerBytesWritten = try makeHeader(bodySize)._set(in: &buffer, at: headerOffset)
         assert(headerBytesWritten == headerSize)
         return headerSize + bodySize
@@ -530,5 +531,28 @@ extension FixedWidthInteger {
             throw ByteBuffer.LengthPrefixError.messageLengthDoesNotFitExactlyIntoRequiredIntegerFormat
         }
         self = lengthPrefix
+    }
+}
+
+
+public struct ByteBufferWriter: NonThrowingByteBufferSerialisable {
+    @inlinable public var writer: Never { fatalError() }
+    
+    @usableFromInline var underestimatedSize: Int
+    @usableFromInline var write: @Sendable (inout ByteBuffer) -> ()
+    @inlinable public init(underestimatedSize: Int = 0, write: @escaping @Sendable (inout ByteBuffer) -> Void) {
+        self.underestimatedSize = underestimatedSize
+        self.write = write
+    }
+    
+    @inlinable public var _underestimatedSize: Int { 0 }
+    @inlinable public var _size: Int? { nil }
+    
+    @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
+        buffer.moveWriterIndex(to: offset)
+        write(&buffer)
+        let bytesWritten = buffer.writerIndex - offset
+        assert(bytesWritten >= 0)
+        return bytesWritten
     }
 }

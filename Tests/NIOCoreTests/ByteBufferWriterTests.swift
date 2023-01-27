@@ -106,6 +106,16 @@ final class ByteBufferWriterTests: XCTestCase {
     
     func testComposition() {
         struct CustomStruct: NonThrowingByteBufferSerialisable {
+            var a: UInt8
+            var b: UInt16
+            var nested: Nested
+            
+            var writer: some NonThrowingByteBufferSerialisable {
+                a
+                b
+                nested
+            }
+            
             enum Nested: NonThrowingByteBufferSerialisable {
                 case c(UInt32)
                 case d(UInt64)
@@ -118,15 +128,6 @@ final class ByteBufferWriterTests: XCTestCase {
                         d
                     }
                 }
-            }
-            var a: UInt8
-            var b: UInt16
-            var nested: Nested
-            
-            var writer: some NonThrowingByteBufferSerialisable {
-                a
-                b
-                nested
             }
         }
         
@@ -185,5 +186,58 @@ final class ByteBufferWriterTests: XCTestCase {
             ))
         }
         XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
+    }
+    
+    func testLengthPrefix() throws {
+        var buffer = try ByteBuffer {
+            LengthPrefixed { bodyLength in
+                IPv4Header(
+                    totalLength: try UInt16(messageLength: 20 + bodyLength),
+                    protocol: .reservedForTesting,
+                    headerChecksum: 0,
+                    sourceIpAddress: .init(127, 0, 0, 1),
+                    destinationIpAddress: .init(127, 0, 0, 1)
+                ).withChecksum()
+            } body: {
+                UInt8(1)
+                UInt16(2)
+                UInt32(3)
+                "My message Body"
+            }
+        }
+        
+        let ipv4Header = try XCTUnwrap(buffer.readIPv4Header())
+        XCTAssertEqual(Int(ipv4Header.totalLength), 20 + buffer.readableBytes)
+        XCTAssertEqual(buffer.readInteger(), UInt8(1))
+        XCTAssertEqual(buffer.readInteger(), UInt16(2))
+        XCTAssertEqual(buffer.readInteger(), UInt32(3))
+        XCTAssertEqual(buffer.readString(length: buffer.readableBytes), "My message Body")
+        XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
+    }
+    
+    func testByteBufferWriter() throws {
+        var buffer = ByteBuffer {
+            UInt8(1)
+            ByteBufferWriter { buffer in
+                buffer.writeInteger(UInt16(2))
+                buffer.writeInteger(UInt32(3))
+            }
+            UInt64(4)
+        }
+        
+        XCTAssertEqual(buffer.readInteger(), UInt8(1))
+        XCTAssertEqual(buffer.readInteger(), UInt16(2))
+        XCTAssertEqual(buffer.readInteger(), UInt32(3))
+        XCTAssertEqual(buffer.readInteger(), UInt64(4))
+        XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
+    }
+}
+
+extension FixedWidthInteger {
+    @inlinable init(messageLength: some BinaryInteger) throws {
+        guard let lengthPrefix = Self(exactly: messageLength) else {
+            throw ByteBuffer.LengthPrefixError.messageLengthDoesNotFitExactlyIntoRequiredIntegerFormat
+        }
+        self = lengthPrefix
     }
 }
