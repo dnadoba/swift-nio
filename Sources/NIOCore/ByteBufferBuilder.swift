@@ -57,13 +57,24 @@ extension NonThrowingByteBufferSerialisable {
     }
 }
 
+public protocol StaticallySized {
+    static var staticSize: Int { get }
+}
+
 extension Never: NonThrowingByteBufferSerialisable {
     @inlinable public var _underestimatedSize: Int { fatalError() }
     @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int { fatalError() }
     @inlinable public var writer: Never { fatalError() }
 }
 
-public struct ByteBufferSerialisableTuple2<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
+//extension Never: StaticallySized {}
+
+extension ByteBufferSerialisable where Writer: StaticallySized {
+    @inlinable public static var staticSize: Int { Writer.staticSize }
+}
+
+@usableFromInline
+struct ByteBufferSerialisableTuple2<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
     @usableFromInline var a: A
     @usableFromInline var b: B
     @inlinable init(a: A, b: B) {
@@ -98,13 +109,13 @@ extension ByteBufferSerialisableTuple2: ByteBufferSerialisable {
 }
 
 extension ByteBufferSerialisableTuple2: NonThrowingByteBufferSerialisable where A: NonThrowingByteBufferSerialisable, B: NonThrowingByteBufferSerialisable {
-    @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
+    @inlinable func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
         let writtenBytesA = a._set(in: &buffer, at: offset)
         let writtenBytesB = b._set(in: &buffer, at: offset + writtenBytesA)
         return writtenBytesA + writtenBytesB
     }
     //@inline(__always)
-    @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
+    @inlinable func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         //guard buffer.count >= a._size! else { fatalError("buffer.count >= _size! \(#function)") }
         let writtenBytesA = a._setUnsafe(in: buffer)
         
@@ -115,7 +126,12 @@ extension ByteBufferSerialisableTuple2: NonThrowingByteBufferSerialisable where 
     }
 }
 
-public enum ByteBufferSerialisableEither<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
+extension ByteBufferSerialisableTuple2: StaticallySized where A: StaticallySized, B: StaticallySized {
+    @inlinable static var staticSize: Int { A.staticSize + B.staticSize }
+}
+
+@usableFromInline
+enum ByteBufferSerialisableEither<A: ByteBufferSerialisable, B: ByteBufferSerialisable> {
     case a(A)
     case b(B)
 }
@@ -151,14 +167,14 @@ extension ByteBufferSerialisableEither: ByteBufferSerialisable {
 }
 
 extension ByteBufferSerialisableEither: NonThrowingByteBufferSerialisable where A: NonThrowingByteBufferSerialisable, B: NonThrowingByteBufferSerialisable {
-    @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
+    @inlinable func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
         switch self {
         case .a(let a): return a._set(in: &buffer, at: offset)
         case .b(let b): return b._set(in: &buffer, at: offset)
         }
     }
     
-    @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
+    @inlinable func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         switch self {
         case .a(let a): return a._setUnsafe(in: buffer)
         case .b(let b): return b._setUnsafe(in: buffer)
@@ -203,19 +219,51 @@ extension Optional: NonThrowingByteBufferSerialisable where Wrapped: NonThrowing
     @inlinable public static func buildPartialBlock<First: ByteBufferSerialisable, Second: ByteBufferSerialisable>(
         accumulated: First,
         next: Second
-    ) -> ByteBufferSerialisableTuple2<First, Second> {
+    ) -> some ByteBufferSerialisable {
         ByteBufferSerialisableTuple2(a: accumulated, b: next)
     }
+    @inlinable public static func buildPartialBlock<First: NonThrowingByteBufferSerialisable, Second: NonThrowingByteBufferSerialisable>(
+        accumulated: First,
+        next: Second
+    ) -> some NonThrowingByteBufferSerialisable {
+        ByteBufferSerialisableTuple2(a: accumulated, b: next)
+    }
+    
+    @inlinable public static func buildPartialBlock<First: ByteBufferSerialisable & StaticallySized, Second: ByteBufferSerialisable & StaticallySized>(
+        accumulated: First,
+        next: Second
+    ) -> some ByteBufferSerialisable & StaticallySized {
+        ByteBufferSerialisableTuple2(a: accumulated, b: next)
+    }
+    @inlinable public static func buildPartialBlock<First: NonThrowingByteBufferSerialisable & StaticallySized, Second: NonThrowingByteBufferSerialisable & StaticallySized>(
+        accumulated: First,
+        next: Second
+    ) -> some NonThrowingByteBufferSerialisable & StaticallySized {
+        ByteBufferSerialisableTuple2(a: accumulated, b: next)
+    }
+    
     @inlinable public static func buildEither<First: ByteBufferSerialisable, Second: ByteBufferSerialisable>(
         first component: First
-    ) -> ByteBufferSerialisableEither<First, Second> {
-        ByteBufferSerialisableEither.a(component)
+    ) -> some ByteBufferSerialisable {
+        ByteBufferSerialisableEither<First, Second>.a(component)
     }
     @inlinable public static func buildEither<First: ByteBufferSerialisable, Second: ByteBufferSerialisable>(
         second component: Second
-    ) -> ByteBufferSerialisableEither<First, Second> {
-        ByteBufferSerialisableEither.b(component)
+    ) -> some ByteBufferSerialisable {
+        ByteBufferSerialisableEither<First, Second>.b(component)
     }
+    
+    @inlinable static func buildEither<First: NonThrowingByteBufferSerialisable, Second: NonThrowingByteBufferSerialisable>(
+        first component: First
+    ) -> some NonThrowingByteBufferSerialisable {
+        ByteBufferSerialisableEither<First, Second>.a(component)
+    }
+    @inlinable public static func buildEither<First: NonThrowingByteBufferSerialisable, Second: NonThrowingByteBufferSerialisable>(
+        second component: Second
+    ) -> some NonThrowingByteBufferSerialisable {
+        ByteBufferSerialisableEither<First, Second>.b(component)
+    }
+    
     @inlinable public static func buildOptional<Component: ByteBufferSerialisable>(_ component: Component?) -> Component? {
         component
     }
@@ -314,9 +362,10 @@ extension ByteBuffer {
 
 
 
-extension FixedWidthInteger where Self: NonThrowingByteBufferSerialisable {
+extension FixedWidthInteger where Self: NonThrowingByteBufferSerialisable & StaticallySized {
     @inlinable public var writer: Never { fatalError() }
     
+    @inlinable public static var staticSize: Int { MemoryLayout<Self>.size }
     @inlinable public var _underestimatedSize: Int { MemoryLayout<Self>.size }
     @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
         buffer.setInteger(self, at: offset)
@@ -331,14 +380,14 @@ extension FixedWidthInteger where Self: NonThrowingByteBufferSerialisable {
     }
 }
 
-extension Int8: NonThrowingByteBufferSerialisable {}
-extension Int16: NonThrowingByteBufferSerialisable {}
-extension Int32: NonThrowingByteBufferSerialisable {}
-extension Int64: NonThrowingByteBufferSerialisable {}
-extension UInt8: NonThrowingByteBufferSerialisable {}
-extension UInt16: NonThrowingByteBufferSerialisable {}
-extension UInt32: NonThrowingByteBufferSerialisable {}
-extension UInt64: NonThrowingByteBufferSerialisable {}
+extension Int8: NonThrowingByteBufferSerialisable, StaticallySized {}
+extension Int16: NonThrowingByteBufferSerialisable, StaticallySized {}
+extension Int32: NonThrowingByteBufferSerialisable, StaticallySized {}
+extension Int64: NonThrowingByteBufferSerialisable, StaticallySized {}
+extension UInt8: NonThrowingByteBufferSerialisable, StaticallySized {}
+extension UInt16: NonThrowingByteBufferSerialisable, StaticallySized {}
+extension UInt32: NonThrowingByteBufferSerialisable, StaticallySized {}
+extension UInt64: NonThrowingByteBufferSerialisable, StaticallySized {}
 
 extension String: NonThrowingByteBufferSerialisable {
     @inlinable public var _underestimatedSize: Int {

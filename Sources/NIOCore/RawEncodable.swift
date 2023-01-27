@@ -35,18 +35,15 @@ extension FixedSizedRawWriterProtocol {
 }
 
 public protocol StaticallySizedRawWriterProtocol: FixedSizedRawWriterProtocol {
-    static var staticSize: Int { get }
+    static var staticRawSize: Int { get }
     func store(to buffer: UnsafeMutableRawBufferPointer)
 }
 
 extension StaticallySizedRawWriterProtocol {
-    @inlinable public var fixedSize: Int { Self.staticSize }
+    @inlinable public var fixedSize: Int { Self.staticRawSize }
 }
 
-extension Never: StaticallySizedRawWriterProtocol {
-    @inlinable public static var staticSize: Int { fatalError() }
-    @inlinable public func store(to buffer: UnsafeMutableRawBufferPointer) { fatalError() }
-}
+
 
 @resultBuilder
 public struct RawEncodableBuilder {
@@ -60,12 +57,12 @@ public struct RawEncodableBuilder {
                 self.second = second
             }
             
-            @inlinable public static var staticSize: Int {
-                First.StaticallySizedRawWriter.staticSize + Second.StaticallySizedRawWriter.staticSize
+            @inlinable public static var staticRawSize: Int {
+                First.StaticallySizedRawWriter.staticRawSize + Second.StaticallySizedRawWriter.staticRawSize
             }
             @inlinable public func store(to buffer: UnsafeMutableRawBufferPointer) {
                 first.store(to: buffer)
-                let advancedBuffer = UnsafeMutableRawBufferPointer(fastRebase: buffer.dropFirst(First.StaticallySizedRawWriter.staticSize))
+                let advancedBuffer = UnsafeMutableRawBufferPointer(fastRebase: buffer.dropFirst(First.StaticallySizedRawWriter.staticRawSize))
                 second.store(to: advancedBuffer)
             }
         }
@@ -173,7 +170,7 @@ extension RawEncodableBuilder {
 
 
 extension FixedWidthInteger where Self: StaticallySizedRawWriterProtocol {
-    @inlinable public static var staticSize: Int {
+    @inlinable public static var staticRawSize: Int {
         MemoryLayout<Self>.size
     }
     @inlinable public func store(to buffer: UnsafeMutableRawBufferPointer) {
