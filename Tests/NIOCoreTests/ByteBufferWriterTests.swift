@@ -231,6 +231,30 @@ final class ByteBufferWriterTests: XCTestCase {
         XCTAssertEqual(buffer.readInteger(), UInt64(4))
         XCTAssertEqual(buffer.writerIndex, buffer.readerIndex)
     }
+    
+    func testResult() throws {
+        var buffer = try ByteBuffer {
+            UInt8(1)
+            UInt16(2)
+            Result {
+                try UInt32(messageLength: 3)
+            }
+            UInt64(4)
+        }
+        XCTAssertEqual(buffer.readInteger(), UInt8(1))
+        XCTAssertEqual(buffer.readInteger(), UInt16(2))
+        XCTAssertEqual(buffer.readInteger(), UInt32(3))
+        XCTAssertEqual(buffer.readInteger(), UInt64(4))
+        
+        XCTAssertThrowsError(try ByteBuffer {
+            UInt8(1)
+            UInt16(2)
+            Result {
+                try UInt32(messageLength: UInt64.max)
+            }
+            UInt64(4)
+        })
+    }
 }
 
 extension FixedWidthInteger {
