@@ -89,6 +89,7 @@ extension ThrowingFixedSized {
 }
 
 extension FixedSized {
+    @inline(__always)
     @inlinable public func _set(in buffer: inout ByteBuffer, at offset: Int) -> Int {
         let size = self._size
         buffer.moveWriterIndex(to: offset)
@@ -99,6 +100,7 @@ extension FixedSized {
             return writtenBytes
         }
     }
+    @inline(__always)
     @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         writer._setUnsafe(in: buffer)
     }
@@ -121,12 +123,27 @@ extension ThrowingByteBufferSerialisable {
 }
 
 extension ByteBufferSerialisable {
+    @inline(__always)
     @inlinable public func _write(to buffer: inout ByteBuffer) -> Int {
         buffer.reserveCapacity(minimumWritableBytes: self._underestimatedSize)
         let initialWriterIndex = buffer.writerIndex
         let writtenBytes = self._set(in: &buffer, at: initialWriterIndex)
         buffer.moveWriterIndex(to: initialWriterIndex + writtenBytes)
         return writtenBytes
+    }
+}
+
+extension ThrowingFixedSized {
+    @inline(__always)
+    @inlinable public func _write(to buffer: inout ByteBuffer) throws -> Int {
+        try self._set(in: &buffer, at: buffer.writerIndex)
+    }
+}
+
+extension FixedSized {
+    @inline(__always)
+    @inlinable public func _write(to buffer: inout ByteBuffer) -> Int {
+        self._set(in: &buffer, at: buffer.writerIndex)
     }
 }
 
@@ -147,6 +164,7 @@ extension Never: FixedSized {
 public struct ByteBufferSerialisableTuple2<A: ThrowingByteBufferSerialisable, B: ThrowingByteBufferSerialisable> {
     @usableFromInline var a: A
     @usableFromInline var b: B
+    @inline(__always)
     @inlinable init(a: A, b: B) {
         self.a = a
         self.b = b
@@ -182,10 +200,11 @@ extension ByteBufferSerialisableTuple2: ByteBufferSerialisable where A: ByteBuff
 }
 
 extension ByteBufferSerialisableTuple2: ThrowingFixedSized where A: ThrowingFixedSized, B: ThrowingFixedSized {
-    //@inline(__always)
+    @inline(__always)
     @inlinable public var _size: Int {
         return a._size + b._size
     }
+    @inline(__always)
     @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) throws -> Int {
         //guard buffer.count >= a._size! else { fatalError("buffer.count >= _size! \(#function)") }
         let writtenBytesA = try a._setUnsafe(in: buffer)
@@ -198,7 +217,7 @@ extension ByteBufferSerialisableTuple2: ThrowingFixedSized where A: ThrowingFixe
 }
 
 extension ByteBufferSerialisableTuple2: FixedSized where A: FixedSized, B: FixedSized {
-    //@inline(__always)
+    @inline(__always)
     @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         //guard buffer.count >= a._size! else { fatalError("buffer.count >= _size! \(#function)") }
         let writtenBytesA = a._setUnsafe(in: buffer)
@@ -334,14 +353,17 @@ public struct VoidSerialisable: FixedSized, StaticallySized {
     @inlinable public static func buildBlock() -> VoidSerialisable {
         VoidSerialisable()
     }
-
-    @inlinable public static func buildPartialBlock<First: ThrowingByteBufferSerialisable>(first: First) -> First {
-        first
-    }
+    
     @inlinable public static func buildPartialBlock(first: Void) -> VoidSerialisable {
         VoidSerialisable()
     }
-    //@inline(__always)
+
+    @inline(__always)
+    @inlinable public static func buildPartialBlock<First: ThrowingByteBufferSerialisable>(first: First) -> First {
+        first
+    }
+    
+    @inline(__always)
     @inlinable public static func buildPartialBlock<First: ThrowingByteBufferSerialisable, Second: ThrowingByteBufferSerialisable>(
         accumulated: First,
         next: Second
@@ -349,11 +371,13 @@ public struct VoidSerialisable: FixedSized, StaticallySized {
         ByteBufferSerialisableTuple2(a: accumulated, b: next)
     }
 
+    @inline(__always)
     @inlinable public static func buildEither<First: ThrowingByteBufferSerialisable, Second: ThrowingByteBufferSerialisable>(
         first component: First
     ) -> ByteBufferSerialisableEither<First, Second> {
         ByteBufferSerialisableEither<First, Second>.a(component)
     }
+    @inline(__always)
     @inlinable public static func buildEither<First: ThrowingByteBufferSerialisable, Second: ThrowingByteBufferSerialisable>(
         second component: Second
     ) -> ByteBufferSerialisableEither<First, Second> {
@@ -369,7 +393,7 @@ public struct VoidSerialisable: FixedSized, StaticallySized {
     // TODO: should we add buildArray as well? use case?
 }
 
-// MARK: ByteBuffer init and write
+// MARK: ByteBuffer init, set and write
 
 extension ByteBuffer {
     @inlinable public init(@ByteBufferWriteBuilder builder: () -> some ThrowingByteBufferSerialisable) throws {
@@ -393,6 +417,7 @@ extension ByteBuffer {
 
 extension ByteBuffer {
     @discardableResult
+    @inline(__always)
     @inlinable public mutating func write(
         @ByteBufferWriteBuilder builder: () throws -> some ThrowingByteBufferSerialisable
     ) throws -> Int {
@@ -400,19 +425,31 @@ extension ByteBuffer {
     }
     
     @discardableResult
-    //@inline(__always)
-    @inlinable public mutating func write(
-        @ByteBufferWriteBuilder builder: () -> some ByteBufferSerialisable
-    ) -> Int {
-        builder()._write(to: &self)
-    }
-    
-    @discardableResult
-    //@inline(__always)
+    @inline(__always)
     @inlinable public mutating func write(
         @ByteBufferWriteBuilder builder: () throws -> some ByteBufferSerialisable
     ) rethrows -> Int {
         try builder()._write(to: &self)
+    }
+}
+
+extension ByteBuffer {
+    @discardableResult
+    @inline(__always)
+    @inlinable public mutating func set(
+        at offset: Int,
+        @ByteBufferWriteBuilder builder: () throws -> some ThrowingByteBufferSerialisable
+    ) throws -> Int {
+        try builder()._set(in: &self, at: offset)
+    }
+    
+    @discardableResult
+    @inline(__always)
+    @inlinable public mutating func set(
+        at offset: Int,
+        @ByteBufferWriteBuilder builder: () throws -> some ByteBufferSerialisable
+    ) rethrows -> Int {
+        try builder()._set(in: &self, at: offset)
     }
 }
 
@@ -421,11 +458,12 @@ extension ByteBuffer {
 extension FixedWidthInteger where Self: FixedSized & StaticallySized {
     @inlinable public var writer: Never { fatalError() }
     
+    @inline(__always)
     @inlinable public static var staticSize: Int { MemoryLayout<Self>.size }
     
-    //@inline(__always)
+    @inline(__always)
     @inlinable public var _size: Int { MemoryLayout<Self>.size }
-    //@inline(__always)
+    @inline(__always)
     @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
         buffer.storeBytes(of: self.bigEndian, as: Self.self)
         return MemoryLayout<Self>.size
@@ -445,8 +483,35 @@ extension UInt64: FixedSized, StaticallySized {}
 // MARK: String
 
 extension String: FixedSized {
-    @inlinable public var writer: some FixedSized {
-        self[...]
+    @inlinable public var writer: Never { fatalError() }
+    
+    @inlinable public var _size: Int { self.utf8.count }
+    
+    @inlinable public func _setUnsafe(in buffer: UnsafeMutableRawBufferPointer) -> Int {
+        if let written = self.utf8.withContiguousStorageIfAvailable({ utf8Bytes in
+            buffer.copyBytes(from: utf8Bytes)
+            return utf8Bytes.count
+        }) {
+            // fast path, directly available
+            return written
+        } else {
+            return self._setUnsafeSlowpath(in: buffer)
+        }
+    }
+    
+    @inline(never)
+    @inlinable
+    internal func _setUnsafeSlowpath(in buffer: UnsafeMutableRawBufferPointer) -> Int {
+        // slow path, let's try to force the string to be native
+        if let written = (self + "").utf8.withContiguousStorageIfAvailable({ utf8Bytes in
+            buffer.copyBytes(from: utf8Bytes)
+            return utf8Bytes.count
+        }) {
+            return written
+        } else {
+            buffer.copyBytes(from: self.utf8)
+            return self.utf8.count
+        }
     }
 }
 

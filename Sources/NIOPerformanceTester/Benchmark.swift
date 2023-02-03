@@ -21,6 +21,10 @@ protocol Benchmark: AnyObject {
 }
 
 func measureAndPrint<B: Benchmark>(desc: String, benchmark bench: B) throws {
+    guard limitSet.isEmpty || limitSet.contains(desc) else {
+        print("skipping '\(desc)', limit set = \(limitSet)")
+        return
+    }
     try bench.setUp()
     defer {
         bench.tearDown()

@@ -63,6 +63,15 @@ public struct WebSocketMaskingKey: Sendable {
     }
 }
 
+extension WebSocketMaskingKey: FixedSized, StaticallySized {
+    public var writer: some FixedSized & StaticallySized {
+        _key.0
+        _key.1
+        _key.2
+        _key.3
+    }
+}
+
 extension WebSocketMaskingKey: ExpressibleByArrayLiteral {
     public typealias ArrayLiteralElement = UInt8
 

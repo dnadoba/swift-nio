@@ -84,7 +84,7 @@ var targets: [PackageDescription.Target] = [
                       dependencies: ["NIOPosix", "NIOCore", "NIOHTTP1", "NIOWebSocket"],
                       exclude: ["README.md"]),
     .executableTarget(name: "NIOPerformanceTester",
-            dependencies: ["NIOPosix", "NIOCore", "NIOEmbedded", "NIOHTTP1", "NIOFoundationCompat", "NIOWebSocket"]),
+            dependencies: ["NIOCore"]),
     .executableTarget(name: "NIOMulticastChat",
             dependencies: ["NIOPosix", "NIOCore"]),
     .executableTarget(name: "NIOUDPEchoServer",

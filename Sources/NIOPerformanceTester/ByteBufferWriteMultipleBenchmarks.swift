@@ -117,6 +117,8 @@ struct TenIntegers<I: FixedSized>: FixedSized {
     }
 }
 
+// ~ 20% slower - 40% time spend in swift_beginAccess
+
 final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthInteger & FixedSized>: Benchmark {
     private let iterations: Int
     private var buffer: ByteBuffer = ByteBuffer()
@@ -136,7 +138,7 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
         var result: I = 0
         let iterations = self.iterations
         for _ in 0..<iterations {
-            let writer = build {
+            self.buffer.write {
                 TenIntegers<I>(
                     i0: 0,
                     i1: 1,
@@ -150,7 +152,6 @@ final class ByteBufferResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: Fixe
                     i9: 9
                 )
             }
-            self.buffer.write { writer }
             let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I, I).self)!
             result = result &+ value.0
             result = result &+ value.1
@@ -198,6 +199,110 @@ final class RawResultBuilderWriteTenIntegersAndReadMultiBenchmark<I: FixedWidthI
                 I(7)
                 I(8)
                 I(9)
+            }
+            let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I, I).self)!
+            result = result &+ value.0
+            result = result &+ value.1
+            result = result &+ value.2
+            result = result &+ value.3
+            result = result &+ value.4
+            result = result &+ value.5
+            result = result &+ value.6
+            result = result &+ value.7
+            result = result &+ value.8
+            result = result &+ value.9
+        }
+        precondition(result == I(self.iterations) * 45)
+        return self.buffer.readableBytes
+    }
+}
+
+// ~ 1.2x speedup
+
+final class ByteBufferMultiReadWriteTenIntegersTwiceBenchmark<I: FixedWidthInteger>: Benchmark {
+    private let iterations: Int
+    private var buffer: ByteBuffer = ByteBuffer()
+
+    init(iterations: Int) {
+        self.iterations = iterations
+    }
+
+    func setUp() throws {}
+
+    func tearDown() {}
+
+    func run() throws -> Int {
+        var result: I = 0
+        for _ in 0..<self.iterations {
+            buffer = ByteBuffer()
+            self.buffer.writeMultipleIntegers(
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                as: (I, I, I, I, I, I, I, I, I, I).self
+            )
+            self.buffer.writeMultipleIntegers(
+                10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                as: (I, I, I, I, I, I, I, I, I, I).self
+            )
+            let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I, I).self)!
+            result = result &+ value.0
+            result = result &+ value.1
+            result = result &+ value.2
+            result = result &+ value.3
+            result = result &+ value.4
+            result = result &+ value.5
+            result = result &+ value.6
+            result = result &+ value.7
+            result = result &+ value.8
+            result = result &+ value.9
+        }
+        precondition(result == I(self.iterations) * 45)
+        return self.buffer.readableBytes
+    }
+}
+
+final class ByteBufferResultBuilderWriteTenIntegersTwiceAndReadMultiBenchmark<I: FixedWidthInteger & FixedSized>: Benchmark {
+    private let iterations: Int
+    private var buffer: ByteBuffer = ByteBuffer()
+
+    init(iterations: Int) {
+        self.iterations = iterations
+    }
+
+    func setUp() throws {}
+
+    func tearDown() {
+    }
+
+    func run() throws -> Int {
+        var result: I = 0
+        let iterations = self.iterations
+        for _ in 0..<iterations {
+            self.buffer = ByteBuffer()
+            self.buffer.write {
+                TenIntegers<I>(
+                    i0: 0,
+                    i1: 1,
+                    i2: 2,
+                    i3: 3,
+                    i4: 4,
+                    i5: 5,
+                    i6: 6,
+                    i7: 7,
+                    i8: 8,
+                    i9: 9
+                )
+                TenIntegers<I>(
+                    i0: 10,
+                    i1: 11,
+                    i2: 12,
+                    i3: 13,
+                    i4: 14,
+                    i5: 15,
+                    i6: 16,
+                    i7: 17,
+                    i8: 18,
+                    i9: 19
+                )
             }
             let value = self.buffer.readMultipleIntegers(as: (I, I, I, I, I, I, I, I, I, I).self)!
             result = result &+ value.0

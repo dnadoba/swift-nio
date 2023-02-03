@@ -183,6 +183,34 @@ extension ByteBuffer {
     }
 }
 
+extension FrameHeader: FixedSized {
+    var writer: some FixedSized {
+        // Calculate some information about the mask.
+        let maskBitMask: UInt8 = self.maskKey != nil ? 0x80 : 0x00
+        let frameLength = self.length
+
+        self.firstByte
+        
+        // Time to add the extra bytes. To avoid checking this twice, we also start writing stuff out here.
+        switch frameLength {
+        case 0...maxOneByteSize:
+            UInt8(frameLength) | maskBitMask
+        case (maxOneByteSize + 1)...maxTwoByteSize:
+            UInt8(126) | maskBitMask
+            UInt16(frameLength)
+        case (maxTwoByteSize + 1)...maxNIOFrameSize:
+            UInt8(127) | maskBitMask
+            UInt64(frameLength)
+        default:
+            fatalError("NIO cannot serialize frames longer than \(maxNIOFrameSize)")
+        }
+
+        self.maskKey
+    }
+}
+
+
+
 
 /// A helper object that holds only a websocket frame header. Used to avoid accidentally CoWing on some paths.
 fileprivate struct FrameHeader {
